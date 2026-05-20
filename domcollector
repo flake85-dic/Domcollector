@@ -1,0 +1,2003 @@
+
+# Код пока что WIP
+import os
+import time
+import json
+import random
+import tempfile
+import threading
+import telebot
+from datetime import datetime
+import re
+import requests
+import shutil
+from functools import wraps
+import telebot.apihelper
+telebot.apihelper.proxy = {}
+
+
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8348705286:AAEyfq7xsT3U8PuMvxayfzQvVhc84Mld60Q")
+
+#
+REQUIRED_CHAT_ID_CREATOR = -1001793978993
+REQUIRED_CHAT_ID_FLAKE =  -1001793978993
+
+def is_member(user_id: int, chat_id: int) -> bool:
+    try:
+        member = bot.get_chat_member(chat_id, user_id)
+        return member.status in ("member", "administrator", "creator")
+    except Exception as e:
+        print(f"Ошибка проверки членства в {chat_id}:", e)
+        return False
+
+def require_podval(func):
+    def wrapper(message, *args, **kwargs):
+        thread_id = getattr(message, "message_thread_id", None)
+
+        if not is_member(message.from_user.id, REQUIRED_CHAT_ID_FLAKE):
+            bot.send_message(
+                chat_id=message.chat.id,
+                text='Чтобы пользоваться ботом, сначала подпишись на канал <a href="https://t.me/Cr3ators_Domain">Креейтора</a>',
+                message_thread_id=thread_id
+            )
+            return
+        return func(message, *args, **kwargs)
+    return wrapper
+
+
+def require_dymenko(func):
+    def wrapper(message, *args, **kwargs):
+        thread_id = getattr(message, "message_thread_id", None)
+
+        if not is_member(message.from_user.id, REQUIRED_CHAT_ID_CREATOR):
+            bot.send_message(
+                chat_id=message.chat.id,
+                text='Чтобы пользоваться ботом, надо подписаться на канал <a href="https://t.me/Cr3ators_Domain">Креейтора</a>',
+                message_thread_id=thread_id
+            )
+            return
+        return func(message, *args, **kwargs)
+    return wrapper
+
+def _thread_id_of(message):
+    return getattr(message, "message_thread_id", None)
+
+
+COOLDOWN_SECONDS = 4 * 60 * 60
+DATA_FILE = "1kreb_data.json"
+
+
+RARITY_WEIGHTS = {
+    "Uncommon": 60,
+    "Rare": 25,
+    "Epic": 9,
+    "Mythic": 3,
+    "Legendary": 1.5,
+    "Special": 0.75,
+    "FORGOTTEN": 0.25,
+    "What the fuck.": 0
+}
+
+SCORE_WEIGHTS = {
+    "Uncommon": 10,
+    "Rare": 25,
+    "Epic": 100,
+    "Mythic": 250,
+    "Legendary": 500,
+    "Special": 1000,
+    "FORGOTTEN": 5000,
+    "What the fuck.": 1,
+}
+
+
+CARDS = [
+    {"id": "2011x", "name": "2011x", "rarity": "Epic", "image_url":"https://i.ibb.co/fY7FHXSY/962-20260312010645.png"},
+    {"id": "tox_springtrap", "name": "Toxic Springtrap", "rarity": "Special", "image_url":"https://i.ibb.co/5hYGFg8g/962-20260313001424.png"},
+    {"id": "neometal", "name": "Neo Metal Sonic", "rarity": "Epic", "image_url":"https://i.ibb.co/M51yNyd1/962-20260313001812.png"},
+    {"id": "dog", "name": "The Dog", "rarity": "Rare", "image_url":"https://i.ibb.co/PzDGvkr7/962-20260313002921.png"},
+    {"id": "faker", "name": "Faker", "rarity": "Rare", "image_url":"https://i.ibb.co/3YBWzNQR/962-20260313003311.png"},
+    {"id": "freddyfigure", "name": "Freddy Figure", "rarity": "Uncommon", "image_url":"https://i.ibb.co/0vP2sLr/962-20260313003700.png"},
+    {"id": "infinite", "name": "Infinite", "rarity": "Mythic", "image_url":"https://i.ibb.co/sJmb3z3y/962-20260313004605.png"},
+    {"id": "ghostface", "name": "Ghost Face", "rarity": "Mythic", "image_url":"https://i.ibb.co/YBxXsXfV/962-20260313005707.png"},
+    {"id": "buddy", "name": "Buddy.", "rarity": "Special", "image_url":"https://i.ibb.co/DfVxjNg0/962-20260313010036.png"},
+    {"id": "welcomeback", "name": "WELCOME BACK.", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/4R5JXDGR/962-20260313010716.png"},
+    {"id": "mecha", "name": "Mecha", "rarity": "Special", "image_url":"https://i.ibb.co/P2tB0sS/962-20260316123131.png"},
+    {"id": "genesisX", "name": "Genesis X", "rarity": "Mythic", "image_url":"https://i.ibb.co/GQvvQVQb/962-20260316123752.png"},
+    {"id": "a01", "name": "A01", "rarity": "Mythic", "image_url":"https://i.ibb.co/ymvnqDGH/962-20260317013335.png"},
+    {"id": "radicalrat", "name": "Radical Rat", "rarity": "Epic", "image_url":"https://i.ibb.co/Q3QjD9JX/962-20260317013626.png"},
+    {"id": "blaze", "name": "Blaze", "rarity": "Rare", "image_url":"https://i.ibb.co/wZ1wtNsV/962-20260317014118.png"},
+    {"id": "animatronic", "name": "The Animatronic", "rarity": "Legendary", "image_url":"https://i.ibb.co/BH6QQ7hN/962-20260317014725.png"},
+    {"id": "execution", "name": "Execution", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/ns5mrML9/962-20260320104420.png"},
+    {"id": "phantom", "name": "Phantom", "rarity": "Rare", "image_url":"https://i.ibb.co/35Qh02YK/962-20260318220245.png"},
+    {"id": "eggman", "name": "Eggman", "rarity": "Uncommon", "image_url":"https://i.ibb.co/TxjkRVLH/962-20260318220717.png"},
+    {"id": "silver", "name": "Silver", "rarity": "Uncommon", "image_url":"https://i.ibb.co/xyHmQDQ/962-20260318220902.png"},
+    {"id": "nmi", "name": "No More Innocence", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/S7P9CCtf/962-20260318221605.png"},
+    {"id": "noli", "name": "Noli", "rarity": "Legendary", "image_url":"https://i.ibb.co/WWcHW4kH/962-20260403015059.png"},
+    {"id": "project", "name": "The Project", "rarity": "Epic", "image_url":"https://i.ibb.co/tTqMk1cz/962-20260402103618-2.png"},
+    {"id": "executioner", "name": "Executioner", "rarity": "Legendary", "image_url":"https://i.ibb.co/VcFw3fNX/962-20260403014602.png"},
+    {"id": "your.problem", "name": "YOUR.PROBLEM", "rarity": "Legendary", "image_url":"https://i.ibb.co/P2QL6mj/962-20260403014056.png"},
+    {"id": "blazebutholyfuck", "name": "Special Menu", "rarity": "What the fuck.", "image_url": "https://i.ibb.co/396VLFL0/photo-2026-04-08-22-42-59.jpg"},
+]
+
+EVENT_CARDS = [
+
+]
+
+
+
+
+
+EVO_CARDS = [
+        {"id": "imp_infinite", "name": "Samurai Infinite", "rarity": "Improved", "image_url":"https://i.ibb.co/23Pf8TtT/962-20260313005139.png"},
+        {"id": "imp_animatronic", "name": "Blighted Animatronic", "rarity": "Improved", "image_url":"https://i.ibb.co/F42SvP37/962-20260317021111.png"},
+        {"id": "saint_solis", "name": "St. Solis EXE", "rarity": "Improved", "image_url":"https://i.ibb.co/KxBSQxjr/962-20260402102055.png"},
+        {"id": "ruined", "name": "Ruined Project", "rarity": "Improved", "image_url":"https://i.ibb.co/ch6RHy0T/962-20260402104334.png"},
+        {"id": "ascended", "name": "Ascended Noli", "rarity": "Improved", "image_url":"https://i.ibb.co/JMNBLyd/962-20260403011447.png"},
+]
+
+
+
+ARCHIVE_CARDS = [
+]
+
+
+CARDS += EVO_CARDS
+
+ALL_CARDS = CARDS + EVO_CARDS + EVENT_CARDS
+CARD_BY_ID = {c["id"]: c for c in ALL_CARDS}
+
+RARITY_ORDER = {
+    "Uncommon": 0,
+    "Rare": 1,
+    "Epic": 2,
+    "Mythic": 3,
+    "Legendary": 4,
+    "Special": 5,
+    "FORGOTTEN": 6,
+    "What the fuck.": 7
+}
+
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+_lock = threading.Lock()
+
+
+
+EVOLUTION_THRESHOLD = 3
+
+
+EVOLUTIONS_BY_NAME = {
+    "Infinite": "Samurai Infinite",
+    "The Animatronic": "Blighted Animatronic",
+    "Faker": "St. Solis EXE",
+    "Noli": "Ascended Noli",
+    "The Project": "Ruined Project"
+}
+
+
+EVOLUTIONS_ID = {}
+for base_name, evo_name in EVOLUTIONS_BY_NAME.items():
+    base_id = next((cid for cid, c in CARD_BY_ID.items() if c["name"] == base_name), None)
+    evo_id = next((cid for cid, c in CARD_BY_ID.items() if c["name"] == evo_name), None)
+    if base_id and evo_id:
+        EVOLUTIONS_ID[base_id] = evo_id
+
+
+def grant_card_no_score(data, user, card):
+
+    u = get_or_init_user(data, user)
+    rarity = card["rarity"]
+    u["counts"][rarity] = u["counts"].get(rarity, 0) + 1
+    u["total"] += 1
+    prev = u["cards"].get(card["id"], 0)
+    u["cards"][card["id"]] = prev + 1
+    if prev == 0:
+        u["unique"] = u.get("unique", 0) + 1
+    u["updated_at"] = int(time.time())
+    data["users"][str(user.id)] = u
+    return prev == 0
+
+
+def process_evolution_if_ready(data, user, base_card):
+
+    base_id = base_card["id"]
+    evo_id = EVOLUTIONS_ID.get(base_id)
+    if not evo_id:
+        return None
+
+    u = get_or_init_user(data, user)
+
+
+    if (u.get("cards", {}).get(evo_id, 0) or 0) > 0:
+        return None
+
+    have = u.get("cards", {}).get(base_id, 0)
+    if have < EVOLUTION_THRESHOLD:
+        return None
+
+
+    base_rarity = base_card["rarity"]
+    bonus = SCORE_WEIGHTS.get(base_rarity, 0) * EVOLUTION_THRESHOLD
+    u["score"] += bonus
+
+
+    evo_card = CARD_BY_ID[evo_id]
+    grant_card_no_score(data, user, evo_card)
+
+    return {"evo_card": evo_card, "bonus": bonus}
+
+GENERAL_ROTATION_EXCLUDED_RARITIES = {"Improved", "Эксклюзивная I степени", "Эксклюзивная II степени", "Эксклюзивная III степени"}
+
+def is_in_general_rotation(card):
+    return (
+        card["id"] not in ARCHIVE_CARDS
+        and card.get("rarity") not in GENERAL_ROTATION_EXCLUDED_RARITIES
+    )
+
+def pick_guaranteed_new_card(user_data):
+    owned = set(cid for cid, qty in user_data.get("cards", {}).items() if qty > 0)
+
+    available_by_rarity = {}
+    for c in CARDS:
+        if not is_in_general_rotation(c):
+            continue
+        if c["id"] in owned:
+            continue
+        r = c.get("rarity")
+        available_by_rarity.setdefault(r, []).append(c)
+
+    if not available_by_rarity:
+        return None
+
+    rarities = list(available_by_rarity.keys())
+    weights = [RARITY_WEIGHTS.get(r, 0) for r in rarities]
+    total_w = sum(weights)
+
+    if total_w <= 0:
+        chosen_rarity = random.choice(rarities)
+    else:
+        chosen_rarity = random.choices(rarities, weights=weights, k=1)[0]
+
+    pool = available_by_rarity[chosen_rarity]
+    return random.choice(pool) if pool else None
+
+
+
+def ensure_data():
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({"last_case": {}, "users": {}}, f, ensure_ascii=False)
+
+
+def load_data():
+    ensure_data()
+    with _lock:
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            data = {"last_case": {}, "users": {}}
+            save_data_atomic(data)
+            return data
+
+
+def save_data_atomic(data):
+    with _lock:
+
+        tmp_dir = os.path.dirname(os.path.abspath(DATA_FILE))
+        fd, tmp = tempfile.mkstemp(prefix="case_", suffix=".json", dir=tmp_dir)
+        with os.fdopen(fd, "w", encoding="utf-8") as w:
+            json.dump(data, w, ensure_ascii=False, indent=2)
+
+        shutil.move(tmp, DATA_FILE)
+
+
+def pick_rarity():
+    rarities = list(RARITY_WEIGHTS.keys())
+    weights = [RARITY_WEIGHTS[r] for r in rarities]
+    return random.choices(rarities, weights=weights, k=1)[0]
+
+
+def pick_card_by_rarity(rarity):
+    pool = [c for c in CARDS if c["rarity"] == rarity and c["id"] not in ARCHIVE_CARDS]
+    return random.choice(pool) if pool else None
+
+
+def display_name(user):
+    parts = [user.first_name or "", user.last_name or ""]
+    name = " ".join(p for p in parts if p).strip()
+    if not name:
+        name = f"User {user.id}"
+    return name
+
+
+def profile_link(user):
+    if user.username:
+        return f"https://t.me/{user.username}"
+    return f"tg://user?id={user.id}"
+
+
+def get_or_init_user(data, user):
+    uid = str(user.id)
+    users = data.setdefault("users", {})
+    u = users.get(uid)
+    if not u:
+        u = {
+            "id": user.id,
+            "name": display_name(user),
+            "username": user.username,
+            "counts": {r: 0 for r in RARITY_WEIGHTS.keys()},
+            "total": 0,
+            "score": 0,
+            "updated_at": int(time.time()),
+            "cards": {},
+            "unique": 0,
+            "repeat_streak": 0,
+        }
+        users[uid] = u
+
+    u.setdefault("cards", {})
+    u.setdefault("unique", 0)
+    u.setdefault("counts", {})
+    u.setdefault("repeat_streak", 0)  # гарантия наличия поля
+    for r in RARITY_WEIGHTS.keys():
+        u["counts"][r] = u["counts"].get(r, 0)
+    return u
+
+def find_card_by_id(card_id: str):
+    for c in CARDS:
+        if str(c.get("id")) == str(card_id):
+            return c
+    for c in EVENT_CARDS:
+        if str(c.get("id")) == str(card_id):
+            return c
+    return None
+
+
+def update_user_stats_with_card(data, user, card):
+
+    u = get_or_init_user(data, user)
+    rarity = card["rarity"]
+
+
+    u["name"] = display_name(user)
+    u["username"] = user.username
+
+
+    u["counts"][rarity] = u["counts"].get(rarity, 0) + 1
+    u["total"] += 1
+
+
+    prev = u["cards"].get(card["id"], 0)
+    u["cards"][card["id"]] = prev + 1
+
+    added_score = 0
+    is_new = False
+    if prev == 0:
+        added_score = SCORE_WEIGHTS.get(rarity, 0)
+        u["score"] += added_score
+        is_new = True
+        u["unique"] = u.get("unique", 0) + 1
+
+    u["updated_at"] = int(time.time())
+    data["users"][str(user.id)] = u
+    return added_score, is_new
+
+
+def sort_users_for_top(users_dict):
+    users = list(users_dict.values())
+    users.sort(key=lambda x: (x.get("score", 0), x.get("total", 0), -(x.get("updated_at", 0))), reverse=True)
+    return users[:20]
+
+
+
+DIRECT_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
+
+
+def is_direct_image_url(url: str) -> bool:
+    if not url:
+        return False
+    low = url.lower()
+    return any(low.endswith(ext) for ext in DIRECT_EXTENSIONS)
+
+
+def resolve_direct_image_url(url: str, timeout: int = 10) -> str:
+    if not url:
+        return url
+    if is_direct_image_url(url):
+        return url
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        if resp.status_code != 200 or not resp.text:
+            return url
+        html = resp.text
+
+        m = re.search(r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+        if m:
+            og = m.group(1).strip()
+            if ("i.imgur.com" in og) and not is_direct_image_url(og):
+                og += ".jpg"
+            return og
+
+        m2 = re.search(r'<link\s+rel=["\']image_src["\']\s+href=["\']([^"\']+)["\']', html, re.IGNORECASE)
+        if m2:
+            href = m2.group(1).strip()
+            if ("i.imgur.com" in href) and not is_direct_image_url(href):
+                href += ".jpg"
+            return href
+
+        m3 = re.search(r'(https://i\.imgur\.com/[A-Za-z0-9]+(?:\.(?:jpg|jpeg|png|gif|webp))?)', html)
+        if m3:
+            return m3.group(1)
+    except Exception:
+        pass
+    return url
+
+
+
+def _thread_id_of(msg_or_call):
+    if hasattr(msg_or_call, "message_thread_id"):
+        return msg_or_call.message_thread_id
+    if hasattr(msg_or_call, "message") and hasattr(msg_or_call.message, "message_thread_id"):
+        return msg_or_call.message.message_thread_id
+    return None
+
+
+def send_message_in_topic(message, text, **kwargs):
+    bot.send_message(
+        message.chat.id, text,
+        message_thread_id=_thread_id_of(message),
+        **kwargs
+    )
+
+
+def send_photo_in_topic(message, photo, caption=None, **kwargs):
+    bot.send_photo(
+        message.chat.id, photo=photo, caption=caption,
+        message_thread_id=_thread_id_of(message),
+        **kwargs
+    )
+
+
+
+def send_message_in_topic_cb(call, text, **kwargs):
+    bot.send_message(
+        call.message.chat.id, text,
+        message_thread_id=_thread_id_of(call),
+        **kwargs
+    )
+
+
+def send_photo_in_topic_cb(call, photo, caption=None, **kwargs):
+    bot.send_photo(
+        call.message.chat.id, photo=photo, caption=caption,
+        message_thread_id=_thread_id_of(call),
+        **kwargs
+    )
+
+
+def get_user_record(data, user_id: int):
+    users = data.get("users", {})
+    return users.get(str(user_id))
+
+def ensure_user_record(data, user_id: int, username=None, first_name=None):
+    users = data.setdefault("users", {})
+    key = str(user_id)
+    if key not in users:
+        users[key] = {
+            "id": str(user_id),
+            "username": username,
+            "name": first_name or "",
+            "score": 0,
+            "cards": {},
+            "description": "",
+            "favorite_card": None,
+        }
+    return users[key]
+
+
+
+def extract_target_user(message, data):
+    if message.reply_to_message:
+        ru = message.reply_to_message.from_user
+        if ru:
+            return ru
+
+    args = message.text.split()
+    if len(args) > 1:
+        arg = args[1].lstrip("@")
+        for uid, u in data.get("users", {}).items():
+            if u.get("username") == arg or str(uid) == arg:
+                return type("U", (), {
+                    "id": int(uid),
+                    "username": u.get("username"),
+                    "first_name": u.get("name", "")
+                })()
+
+    if message.from_user:
+        return message.from_user
+
+    return None
+
+
+
+
+
+
+@bot.message_handler(commands=["start", "restart"])
+def start_cmd(message):
+    handle_start(message)
+
+def handle_start(message):
+    text = (
+        "<b>Welcome Back... Или мы с тобою не виделись?</b>\n\n"
+        '<i>Это карточный бот, созданный <a href="https://t.me/Cr3ators_Domain">Креейтором</a> и <a href="https://t.me/flakeclipse">Флейком</a></i>\n'
+        "<i>и имеющий разнообразную тематику, вроде ЕХЕверса и ФНАФа.</i>\n\n"
+        "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием.</b>"
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        message_thread_id=_thread_id_of(message)
+    )
+
+
+@bot.message_handler(commands=["help"])
+@require_podval
+def help_cmd(message):
+    text = (
+        '<b>COMMANDS.txt</b>\n\n'
+        '<blockquote>/start - Запуск бота\n/pull - Вытянуть карту\n/gift - Подарить карту\n— Ты можешь подарить карту только если она есть у тебя в двойном экземпляре\n/top - Вызвать список лидеров\n— Список лидеров общий. Это значит, что в нем будут все пользователи бота\n/profile - Вызвать свой профиль\n— Вызов чужого профиля осуществляется по этому шаблону: "/profile "@юз"" \n/profileinfo - Подробнее о кастомизации профиля\n/giftinfo - Подробнее о передаче карт\n/collection - Вызов списка редкостей\n— /"Наименование редкости" - вызов списка карт той, или иной редкости, что есть в вашем инвентаре</blockquote>'
+    )
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        message_thread_id=_thread_id_of(message)
+    )
+
+
+
+@bot.message_handler(commands=["giftinfo"])
+@require_podval
+@require_dymenko
+def hyihyi_cmd(message):
+    handle_hyihyi(message)
+
+
+def handle_hyihyi(message):
+
+    text = (
+        "<b>GIFT INFO.txt</b>\n<blockquote>Команда осуществляется через\n/gift<code> [айди карты] [юз/айди пользователя]</code>\n У тебя должно быть как минимум 2 одинаковые карты,\n чтобы можно было подарить одну из них.\n<i>Карты редкости Improved не годны для передачи.</i></blockquote>"
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+        message_thread_id=_thread_id_of(message)
+    )
+
+@bot.message_handler(commands=["profileinfo"])
+@require_podval
+@require_dymenko
+def profile_info_cmd(message):
+    thread_id = message.message_thread_id if message.message_thread_id else None
+
+    text = (
+        '<b>AllAboutProfiles.txt</b>\n'
+        '<blockquote><b><i>Общее:</i></b>\n/profile "@юз пользователя"\n— Свой профиль вызывается без добавления юзернейма\n\n<b><i>Кастомизация:</i></b>\n/setdesc - Установить описание профиля\n— Не может содержать более 200 символов\n/setfav - Установить любимую карту\n— Установка проходит по этому шаблону: /setfav "Айди нужной карты"\n— Айди карты можно узнать следующим образом:\n1. Вызов списка редкостей с помощью "/collection"\n2. Прописка необходимой редкости.\nАйди карты будет указано рядом с ее названием.</blockquote>'
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        message_thread_id=thread_id
+    )
+
+
+@bot.message_handler(commands=["pull"])
+@require_podval
+@require_dymenko
+def case_cmd(message):
+    handle_case(message)
+
+@bot.message_handler(func=lambda m: m.text and m.text.strip().lower() == "?вытянуть")
+@require_podval
+@require_dymenko
+def case_word(message):
+    handle_case(message)
+
+
+def handle_case(message):
+    user = message.from_user
+
+    user_id = str(user.id)
+    thread_id = getattr(message, "message_thread_id", None)
+
+    data = load_data()
+    u = get_or_init_user(data, user)
+
+    last_case = data.get("last_case", {}).get(user_id, 0)
+    now = int(time.time())
+    COOLDOWN_SECONDS_LOCAL = 7200
+
+
+    if user.username:
+        user_display = f"@{user.username}"
+    else:
+        user_display = f'<a href="tg://user?id={user.id}">{user.first_name}</a>'
+
+    cooldown_texts = [
+        "<b>It's not the time... for now. Подожди еще {m} минут и {s} секунд.</b>",
+        "<b>Представь забавную картинку с кроликом показывающим на часы на которых видно что до следующей карты тебе ждать еще {m} минут и {s} секунд.</b>",
+        "<b>Надеюсь, {m} минут и {s} секунд потерпеть это в твоих силах.</b>",
+        "<b>Ииии... {m} минут и {s} секунд остается до релиза Форг-- ой то есть до следующей карты!</b>",
+        "<b>Пэйдэй через {m} минут и {s} секунд.</b>"
+    ]
+
+    if now - last_case < COOLDOWN_SECONDS_LOCAL:
+        remaining = COOLDOWN_SECONDS_LOCAL - (now - last_case)
+        m, s = divmod(remaining, 60)
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=random.choice(cooldown_texts).format(m=m, s=s),
+            message_thread_id=thread_id
+        )
+        return
+
+
+    rarity = pick_rarity()
+
+
+    while rarity == "Improved":
+        rarity = pick_rarity()
+
+    EVENT_CARD_IDS = {c["id"] for c in EVENT_CARDS}
+
+    pool = [
+        c for c in CARDS
+        if c["id"] not in EVENT_CARD_IDS
+           and c["id"] not in ARCHIVE_CARDS
+           and c["rarity"] != "Improved"  # ❗ эво-редкость не попадает в обычный дроп
+    ]
+
+    candidates = [c for c in pool if c["rarity"] == rarity]
+
+    if candidates:
+        card = random.choice(candidates)
+    else:
+        card = random.choice(pool)
+
+    rarity = card["rarity"]
+
+    exclusive_degrees = {
+        "Эксклюзивная I степени",
+        "Эксклюзивная II степени",
+        "Эксклюзивная III степени",
+    }
+
+    # --- ГАРАНТ НОВОЙ КАРТЫ ---
+    if u.get("repeat_streak", 0) >= 4 and rarity not in exclusive_degrees:
+        guaranteed = pick_guaranteed_new_card(u)
+        # ❗ Доп. защита: если гарант вдруг вернул эво-карту — игнорим её
+        if guaranteed and guaranteed.get("rarity") != "Improved":
+            card = guaranteed
+            rarity = card["rarity"]
+            u["repeat_streak"] = 0
+
+    added_score, is_new = update_user_stats_with_card(data, user, card)
+    evo_result = process_evolution_if_ready(data, user, card)
+
+    u["repeat_streak"] = 0 if is_new else u.get("repeat_streak", 0) + 1
+    data.setdefault("last_case", {})[user_id] = now
+    save_data_atomic(data)
+
+    name = card["name"]
+
+    drop_texts = [
+        f'<blockquote>{user_display} | Lets take a look...</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | И твоя новая карта...</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | Я тебе притащил карту!</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | Держи еще одну карту:</blockquote>\n<b>{name} - {rarity}</b>\n',
+    ]
+
+    duplicate_texts = [
+        "<b>Хм, ничего нового. Повторка.</b>",
+        "<b>Ранее ты уже получил эту карту... не забудь проверить, не потерпела ли она импрув за твоей спиной!</b>",
+        "<b>Она уже есть у тебя.. Пока что без осколков.</b>",
+        "<b>Повторка, предлагаю ее отдать тому, кому нужнее.</b>\n <i>(Псс, это делается через команду /gift)</i>",
+        "<b>Повезет в следующий раз...</b>"
+    ]
+
+    caption = random.choice(drop_texts).format(name=card["name"], rarity=rarity)
+    if is_new and added_score > 0:
+        caption += f"\n+{added_score} осколков."
+    else:
+        caption += "\n" + random.choice(duplicate_texts)
+
+    url = card.get("image_url")
+    sent = False
+    if url:
+        try:
+            bot.send_photo(
+                chat_id=message.chat.id,
+                photo=resolve_direct_image_url(url),
+                caption=caption,
+                message_thread_id=thread_id
+            )
+            sent = True
+        except Exception as e:
+            print("Ошибка send_photo (case):", e)
+
+    if not sent:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=caption + (f"\n(Ссылка: {url})" if url else ""),
+            disable_web_page_preview=False,
+            parse_mode="HTML",
+            message_thread_id=thread_id
+        )
+
+    if evo_result:
+        evo_card = evo_result["evo_card"]
+        bonus = evo_result["bonus"]
+
+        evo_caption = random.choice([
+            user_display + '\nЛимит повторов достигнут, думаю... Я могу обменять твои повторки на нечто большее... ВО-А-ЛЯ! Держи свою новую карту \n{name} | {rarity}\n+{bonus} осколков.</i>',
+        ]).format(
+            name=evo_card["name"],
+            rarity=evo_card["rarity"],
+            bonus=bonus
+        )
+
+        sent2 = False
+        url2 = evo_card.get("image_url")
+        if url2:
+            try:
+                bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=resolve_direct_image_url(url2),
+                    caption=evo_caption,
+                    message_thread_id=thread_id
+                )
+                sent2 = True
+            except Exception as e:
+                print("Ошибка send_photo (эволюция):", e)
+
+        if not sent2:
+            bot.send_message(
+                chat_id=message.chat.id,
+                text=evo_caption + (f"\n(Ссылка: {url2})" if url2 else ""),
+                parse_mode="HTML",
+                message_thread_id=thread_id
+            )
+
+
+
+
+@bot.message_handler(commands=["top"])
+@require_podval
+@require_dymenko
+def top_cmd(message):
+    handle_top(message)
+
+
+def handle_top(message):
+    user = message.from_user
+
+    data = load_data()
+    users = data.get("users", {})
+    top_users = sort_users_for_top(users)[:20]
+
+    header = "<b>НАШИ ЛУЧШИЕ ПОЛЬЗОВАТЕЛИ</b>\n"
+    lines = []
+    for i, u in enumerate(top_users, start=1):
+        display_name = u.get("name") or f'User {u.get("id")}'
+        link = f'https://t.me/{u["username"]}' if u.get("username") else f'tg://user?id={u.get("id")}'
+        score = u.get("score", 0)
+        lines.append(f'{i}. <a href="{link}">{display_name}</a> — осколков: {score}')
+    if not lines:
+        lines.append("тут никогда не будет пусто хых")
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=header + "\n".join(lines),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        message_thread_id=_thread_id_of(message)
+    )
+
+
+
+@bot.message_handler(commands=["gift"])
+@require_podval
+@require_dymenko
+def gift_cmd(message):
+    handle_gift(message)
+
+
+def handle_gift(message):
+    user = message.from_user
+    thread_id = _thread_id_of(message)
+
+    args = message.text.split()
+    if len(args) < 3:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text="Использование: /gift [ID карты] [@username или ID получателя]",
+            message_thread_id=thread_id
+        )
+        return
+
+    card_id = args[1]
+    recipient_arg = args[2].lstrip("@")
+
+    data = load_data()
+    sender_data = get_or_init_user(data, user)
+
+    recipient_user = None
+    for uid, u in data.get("users", {}).items():
+        if u.get("username") == recipient_arg or str(uid) == recipient_arg:
+            recipient_user = u
+            break
+
+    if not recipient_user:
+        bot.send_message(
+            message.chat.id,
+            f"【⚠️】• Получатель {recipient_arg} не найден.",
+            message_thread_id=thread_id
+        )
+        return
+
+    card = CARD_BY_ID.get(card_id)
+    if not card:
+        bot.send_message(
+            message.chat.id,
+            "【⚠️】• Карта с таким ID не найдена.",
+            message_thread_id=thread_id
+        )
+        return
+
+    rarity = card["rarity"]
+    sender_cards = sender_data.get("cards", {})
+    if card_id not in sender_cards:
+        bot.send_message(
+            message.chat.id,
+            "【⚠️】• У тебя нет такой карты.",
+            message_thread_id=thread_id
+        )
+        return
+
+    card_count = sender_cards[card_id]
+
+    rarity_rules = {
+        "FORGOTTEN": (1, 1),
+        "Special": (1, 1),
+        "Mythic": (1, 1),
+        "Legendary": (1, 1),
+        "Epic": (1, 1),
+        "Rare": (1, 1),
+        "Uncommon": (1, 1),
+    }
+
+    recipient_cards = recipient_user.setdefault("cards", {})
+    had_card = card_id in recipient_cards
+
+    sender_display = f"@{user.username}" if user.username else f'<a href="tg://user?id={user.id}">{user.first_name}</a>'
+    recipient_display = f"@{recipient_user.get('username')}" if recipient_user.get("username") else f'<a href="tg://user?id={recipient_user.get("id")}">Игрок</a>'
+
+    if rarity in ("Эксклюзивная I степени", "Эксклюзивная II степени", "Эксклюзивная III степени"):
+        if card_count < 1:
+            bot.send_message(
+                message.chat.id,
+                f"【⚠️】• У тебя нет карты {rarity} для подарка.",
+                message_thread_id=thread_id
+            )
+            return
+
+        sender_cards.pop(card_id)
+        recipient_cards[card_id] = recipient_cards.get(card_id, 0) + 1
+
+        if not had_card:
+            added_score = SCORE_WEIGHTS.get(rarity, 0)
+            recipient_user["score"] = recipient_user.get("score", 0) + added_score
+            recipient_user["unique"] = recipient_user.get("unique", 0) + 1
+            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!\n+{added_score} осколков получателю"
+        else:
+            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!"
+
+    else:
+        if rarity not in rarity_rules:
+            bot.send_message(
+                message.chat.id,
+                "【⚠️】• Эту карту нельзя подарить.",
+                message_thread_id=thread_id
+            )
+            return
+
+        need, remove = rarity_rules[rarity]
+        if card_count < need:
+            bot.send_message(
+                message.chat.id,
+                f"Нужно минимум {need} карт этой редкости, чтобы подарить.",
+                message_thread_id=thread_id
+            )
+            return
+
+        sender_cards[card_id] -= remove
+        if sender_cards[card_id] <= 0:
+            sender_cards.pop(card_id)
+
+        recipient_cards[card_id] = recipient_cards.get(card_id, 0) + 1
+
+        if not had_card:
+            added_score = SCORE_WEIGHTS.get(rarity, 0)
+            recipient_user["score"] = recipient_user.get("score", 0) + added_score
+            recipient_user["unique"] = recipient_user.get("unique", 0) + 1
+            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!\n+{added_score} осколков получателю"
+        else:
+            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!"
+
+    bot.send_message(
+        message.chat.id,
+        main_text,
+        parse_mode="HTML",
+        message_thread_id=thread_id
+    )
+
+    notify_text = f"【📩】• {sender_display} подарил тебе карту \"{card['name']}\" ({rarity})!"
+    try:
+        bot.send_message(
+            chat_id=recipient_user["id"],
+            text=notify_text,
+            parse_mode="HTML"
+        )
+    except Exception:
+        bot.send_message(
+            message.chat.id,
+            f"{recipient_display}, тебе подарок!\n{notify_text}",
+            parse_mode="HTML",
+            message_thread_id=thread_id
+        )
+
+    save_data_atomic(data)
+
+
+
+
+
+
+def _safe_sklad_sort_key(cid: str):
+    match = re.search(r'(\d+)', cid)
+    if match:
+        return (cid[:match.start()], int(match.group(1)))
+    return (cid, 0)
+
+
+def chunk_and_send(chat_id, thread_id, lines, chunk_size=100):
+    for i in range(0, len(lines), chunk_size):
+        chunk = lines[i:i+chunk_size]
+        msg_text = "\n".join(chunk)
+        bot.send_message(
+            chat_id=chat_id,
+            text=msg_text,
+            parse_mode="HTML",
+            message_thread_id=thread_id,
+            disable_web_page_preview=False
+        )
+
+
+@bot.message_handler(commands=["collection"])
+@require_podval
+@require_dymenko
+def skvad_cmd(message):
+    handle_skvad(message)
+
+
+def handle_skvad(message):
+    user = message.from_user
+    thread_id = _thread_id_of(message)
+
+    text = (
+        '<i>Похоже, что кто-то заинтересован в просмотре собственной коллекции</i>\n'
+        '<blockquote><b>Редкости:</b>\nUncommon — /uncommon\nRare — /rare\nEpic — /epic\nLegendary — /legendary\nMythic — /mythic\nSpecial — /special\nFORGOTTEN — /forgotten\nImproved — /improved\nЭксклюзивные карты — /exclusive\nEvent — /event\n\n<b>Прочее:</b>\n/raritycount - Вызов счетчика карт\n/card "ID карты" - Просмотр одной конкретной карты</blockquote>'
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+        message_thread_id=thread_id
+    )
+
+
+def send_sklad_by_rarity(message, rarity_name):
+    data = load_data()
+    u = get_or_init_user(data, message.from_user)
+    cards_data = CARD_BY_ID
+
+    grouped = [
+        (cid, cards_data[cid], qty)
+        for cid, qty in u["cards"].items()
+        if qty > 0 and cid in cards_data and cards_data[cid].get("rarity") == rarity_name
+    ]
+
+    if not grouped:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=f"У тебя пока нет карт редкости <b>{rarity_name}</b>",
+            parse_mode="HTML",
+            message_thread_id=_thread_id_of(message)
+        )
+        return
+
+    grouped.sort(key=lambda x: _safe_sklad_sort_key(x[0]))
+
+    lines = [f"<b>{rarity_name}</b>"]
+    for cid, card, qty in grouped:
+        name = card.get("name", "Безымянная")
+        url = card.get("image_url")
+        if url:
+            lines.append(f'<a href="{url}">{name}</a> — {qty} шт (ID: {cid})')
+        else:
+            lines.append(f"{name} — {qty} шт (ID: {cid})")
+
+    chunk_and_send(message.chat.id, _thread_id_of(message), lines, chunk_size=100)
+
+
+def send_sklad_by_specific_rarity(message, rarity_name):
+    data = load_data()
+    u = get_or_init_user(data, message.from_user)
+    cards_data = CARD_BY_ID
+
+    grouped = [
+        (cid, cards_data[cid], qty)
+        for cid, qty in u["cards"].items()
+        if qty > 0 and cid in cards_data and cards_data[cid].get("rarity") == rarity_name
+    ]
+
+    if not grouped:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=f"У тебя пока нет карт редкости <b>{rarity_name}</b>",
+            parse_mode="HTML",
+            message_thread_id=_thread_id_of(message)
+        )
+        return
+
+    grouped.sort(key=lambda x: _safe_sklad_sort_key(x[0]))
+
+    lines = [f"<b>{rarity_name}</b>"]
+    for cid, card, qty in grouped:
+        name = card.get("name", "Безымянная")
+        url = card.get("image_url")
+        if url:
+            lines.append(f'<a href="{url}">{name}</a> — {qty} шт (ID: {cid})')
+        else:
+            lines.append(f"{name} — {qty} шт (ID: {cid})")
+
+    chunk_and_send(message.chat.id, _thread_id_of(message), lines, chunk_size=100)
+
+
+@bot.message_handler(commands=["uncommon"])
+@require_podval
+@require_dymenko
+def sklad_common_cmd(message):
+    send_sklad_by_rarity(message, "Uncommon")
+
+
+@bot.message_handler(commands=["rare"])
+@require_podval
+@require_dymenko
+def sklad_rare_cmd(message):
+    send_sklad_by_rarity(message, "Rare")
+
+@bot.message_handler(commands=["epic"])
+@require_podval
+@require_dymenko
+def sklad_superrare_cmd(message):
+    send_sklad_by_rarity(message, "Epic")
+
+@bot.message_handler(commands=["legendary"])
+@require_podval
+@require_dymenko
+def sklad_epic_cmd(message):
+    send_sklad_by_rarity(message, "Legendary")
+
+@bot.message_handler(commands=["mythic"])
+@require_podval
+@require_dymenko
+def sklad_epic_cmd(message):
+    send_sklad_by_rarity(message, "Mythic")
+
+@bot.message_handler(commands=["special"])
+@require_podval
+@require_dymenko
+def sklad_epic_cmd(message):
+    send_sklad_by_rarity(message, "Special")
+
+@bot.message_handler(commands=["forgotten"])
+@require_podval
+@require_dymenko
+def sklad_epic_cmd(message):
+    send_sklad_by_rarity(message, "FORGOTTEN")
+
+@bot.message_handler(commands=["improved"])
+@require_podval
+@require_dymenko
+def sklad_evo_cmd(message):
+    send_sklad_by_rarity(message, "Improved")
+
+@bot.message_handler(commands=["exclusive"])
+@require_podval
+@require_dymenko
+def sklad_exc_cmd(message):
+    send_sklad_by_rarity(message, "What the fuck.")
+
+@bot.message_handler(commands=["event"])
+@require_podval
+@require_dymenko
+def sklad_event_cmd(message):
+    send_event_cards(message)
+
+
+def send_event_cards(message):
+    data = load_data()
+    u = get_or_init_user(data, message.from_user)
+    cards_data = CARD_BY_ID
+
+    grouped = []
+    for cid, qty in u["cards"].items():
+        if qty > 0 and cid in cards_data:
+            if cid in {c["id"] for c in EVENT_CARDS} or cid in ARCHIVE_CARDS:
+                grouped.append((cid, cards_data[cid], qty))
+
+    if not grouped:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text="У тебя пока нет ивентовых карт.",
+            parse_mode="HTML",
+            message_thread_id=_thread_id_of(message)
+        )
+        return
+
+    grouped.sort(key=lambda x: _safe_sklad_sort_key(x[0]))
+
+    lines = ["<b>Ивентовые карты</b>"]
+    for cid, card, qty in grouped:
+        name = card.get("name", "Безымянная")
+        url = card.get("image_url")
+        if url:
+            lines.append(f'<a href="{url}">{name}</a> — {qty} шт (ID: {cid})')
+        else:
+            lines.append(f"{name} — {qty} шт (ID: {cid})")
+
+    chunk_and_send(message.chat.id, _thread_id_of(message), lines, chunk_size=100)
+
+
+@bot.message_handler(commands=["raritycount"])
+@require_podval
+@require_dymenko
+def raritycount_cmd(message):
+    data = load_data()
+    u = get_or_init_user(data, message.from_user)
+    cards_data = CARD_BY_ID
+    EVENT_CARDS_IDS = {c["id"] for c in EVENT_CARDS}
+
+    def count_rarity(rarity):
+        total = sum(1 for c in cards_data.values()
+                    if c.get("rarity") == rarity
+                    and c["id"] not in ARCHIVE_CARDS
+                    and c["id"] not in EVENT_CARDS_IDS)
+        unique = len([cid for cid, qty in u["cards"].items()
+                      if qty > 0 and cards_data[cid]["rarity"] == rarity
+                      and cid not in ARCHIVE_CARDS and cid not in EVENT_CARDS_IDS])
+        return unique, total
+
+
+    evo_u, evo_t = count_rarity("Improved")
+
+
+    events_u = len([cid for cid, qty in u["cards"].items()
+                    if qty > 0 and (cid in ARCHIVE_CARDS or cid in EVENT_CARDS_IDS)])
+
+    total_all = sum(1 for c in cards_data.values()
+                    if c["id"] not in ARCHIVE_CARDS
+                    and c["id"] not in EVENT_CARDS_IDS
+                    and c.get("rarity") not in ("Эксклюзивная", "Improved"))
+    unique_all = len([cid for cid, qty in u["cards"].items()
+                      if qty > 0 and cid in cards_data
+                      and cid not in ARCHIVE_CARDS
+                      and cid not in EVENT_CARDS_IDS
+                      and cards_data[cid].get("rarity") not in ("Эксклюзивная", "Improved")])
+
+    total_score = u.get("score", 0)
+    all_users = [(uid, usr.get("score", 0)) for uid, usr in data["users"].items()]
+    all_users.sort(key=lambda x: x[1], reverse=True)
+    rank = next((i + 1 for i, (uid, _) in enumerate(all_users) if uid == str(message.from_user.id)), None)
+
+    text = (
+        f"<b>Раскрыто карт</b>: {unique_all} из {total_all}\n"
+        f"<b>Очков начислено</b>: {total_score}\n"
+        f"<b>Место в топе</b>: {rank} из {len(all_users)}\n\n"
+        f"<b>Импрувы</b>: {evo_u} из {evo_t}\n"
+        f"<b>Ивентовые</b>: {events_u}\n"
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+        message_thread_id=_thread_id_of(message)
+    )
+
+
+
+
+
+@bot.message_handler(commands=["card"])
+@require_podval
+@require_dymenko
+def card_cmd(message):
+    handle_card(message)
+
+
+def handle_card(message):
+    user = message.from_user
+    thread_id = getattr(message, "message_thread_id", None)
+
+    args = message.text.split()
+    if len(args) < 2:
+        bot.send_message(
+            message.chat.id,
+            "【⚠️】• Использование: /card [ID карты]",
+            message_thread_id=thread_id,
+            parse_mode="HTML"
+        )
+        return
+
+    card_id = args[1]
+
+    data = load_data()
+    u = get_or_init_user(data, user)
+
+    # Проверяем наличие карты у пользователя
+    if card_id not in u.get("cards", {}) or u["cards"][card_id] <= 0:
+        bot.send_message(
+            message.chat.id,
+            f"🪫 У тебя нет карты с ID {card_id}",
+            parse_mode="HTML",
+            message_thread_id=thread_id
+        )
+        return
+
+    card = CARD_BY_ID.get(card_id)
+    if not card:
+        bot.send_message(
+            message.chat.id,
+            f"【⚠️】• Карта с ID {card_id} не найдена в базе",
+            message_thread_id=thread_id
+        )
+        return
+
+    name = card.get("name", "Безымянная")
+    rarity = card.get("rarity", "?")
+    url = card.get("image_url")
+    qty = u["cards"][card_id]
+
+    caption = (
+        f"<b>{name}</b>\n"
+        f"Редкость: {rarity}\n"
+        f"ID: {card_id}\n"
+        f"Количество: {qty}"
+    )
+
+    if url:
+        try:
+            bot.send_photo(
+                message.chat.id,
+                resolve_direct_image_url(url),
+                caption=caption,
+                parse_mode="HTML",
+                message_thread_id=thread_id
+            )
+            return
+        except:
+            pass
+
+    bot.send_message(
+        message.chat.id,
+        caption + (f"\n(Ссылка: {url})" if url else ""),
+        parse_mode="HTML",
+        message_thread_id=thread_id
+    )
+
+
+
+
+
+@bot.message_handler(commands=["profile"])
+@require_podval
+def profile_cmd(message):
+    handle_profile(message)
+
+
+def handle_profile(message):
+    thread_id = _thread_id_of(message)
+    data = load_data()
+
+    target_user = None
+
+    if message.reply_to_message and message.reply_to_message.from_user:
+        root_id = getattr(message, "message_thread_id", None)
+        # если реплаем на реальное сообщение, а не на корень темы
+        if root_id is None or message.reply_to_message.message_id != root_id:
+            target_user = message.reply_to_message.from_user
+
+    # --- 2) Аргумент /profile @user или /profile id ---
+    if not target_user:
+        args = message.text.split()
+        if len(args) > 1:
+            arg = args[1].lstrip("@")
+            for uid, u in data.get("users", {}).items():
+                if u.get("username") == arg or str(uid) == arg:
+                    target_user = type("U", (), {
+                        "id": int(uid),
+                        "username": u.get("username"),
+                        "first_name": u.get("name", "")
+                    })()
+                    break
+
+    # --- 3) По умолчанию — сам вызвавший команду ---
+    if not target_user:
+        target_user = message.from_user
+
+    # Проверяем членство в ТЕКУЩЕМ чате (а не фиксированном)
+    if not is_member(target_user.id, message.chat.id):
+        bot.send_message(
+            chat_id=message.chat.id,
+            text="【⛔】• Пользователь не состоит в чате",
+            message_thread_id=thread_id
+        )
+        return
+
+    u = ensure_user_record(data, target_user.id, target_user.username, target_user.first_name)
+
+    username = target_user.username if target_user.username else (target_user.first_name or "Пользователь")
+    score = u.get("score", 0)
+
+    exclusive_degrees = {"Эксклюзивная I степени", "Эксклюзивная II степени", "Эксклюзивная III степени"}
+    EVENT_CARDS_IDS = {c["id"] for c in EVENT_CARDS}
+
+    total_cards = len([
+        cid for cid, qty in u.get("cards", {}).items()
+        if qty > 0
+        and cid in CARD_BY_ID
+        and cid not in ARCHIVE_CARDS
+        and cid not in EVENT_CARDS_IDS
+        and CARD_BY_ID[cid].get("rarity") not in exclusive_degrees
+        and CARD_BY_ID[cid].get("rarity") != "Improved"
+    ])
+
+    total_evo = len([
+        cid for cid, qty in u.get("cards", {}).items()
+        if qty > 0
+        and CARD_BY_ID.get(cid, {}).get("rarity") == "Improved"
+    ])
+
+    total_exclusive = len([
+        cid for cid, qty in u.get("cards", {}).items()
+        if qty > 0
+        and CARD_BY_ID.get(cid, {}).get("rarity") in exclusive_degrees
+    ])
+
+    events_u = len([
+        cid for cid, qty in u.get("cards", {}).items()
+        if qty > 0
+        and (cid in ARCHIVE_CARDS or cid in EVENT_CARDS_IDS)
+    ])
+
+    description = u.get("description", "— не задано —")
+    fav_id = u.get("favorite_card")
+
+    sorted_users = sorted(
+        data.get("users", {}).items(),
+        key=lambda x: x[1].get("score", 0),
+        reverse=True
+    )
+    rank = next(
+        (i + 1 for i, (uid, usr) in enumerate(sorted_users) if str(uid) == str(target_user.id)),
+        None
+    )
+
+    caption = (
+        f"<b>КАРТОЧКА ПОЛЬЗОВАТЕЛЯ:</b>\n"
+        f"<i>Пользователь:</i> {username}\n"
+        f"<i>Место в рейтинге:</i> {rank if rank else '—'}\n\n"
+        f"<i>Всего осколков:</i> {score}\n"
+        f"<i>Постоянные карты:</i> {total_cards}\n"
+        f"<i>Карт, потерпевших импрув:</i> {total_evo}\n"
+        f"<i>Ивентовые карты:</i> {events_u}\n\n"
+        f"<b>Описание:</b>\n<blockquote>{description}</blockquote>"
+    )
+
+    if fav_id and str(fav_id) in CARD_BY_ID and u.get("cards", {}).get(fav_id, 0) > 0:
+        fav_card = CARD_BY_ID[str(fav_id)]
+        fav_caption = caption + f"\n\n❤️ <b>Любимая карта:</b> {fav_card['name']} ({fav_card['rarity']})"
+        url = fav_card.get("image_url")
+        if url:
+            try:
+                bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=resolve_direct_image_url(url),
+                    caption=fav_caption,
+                    parse_mode="HTML",
+                    message_thread_id=thread_id
+                )
+                return
+            except Exception:
+                fav_caption += f"\n(Ссылка: {url})"
+
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=fav_caption,
+            parse_mode="HTML",
+            message_thread_id=thread_id
+        )
+    else:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=caption + "\n❤️ Любимая карта: — не выбрана —",
+            parse_mode="HTML",
+            message_thread_id=thread_id
+        )
+
+
+
+
+
+@bot.message_handler(commands=["setdesc"])
+@require_podval
+@require_dymenko
+def set_description_cmd(message):
+    thread_id = _thread_id_of(message)
+    user = message.from_user
+    data = load_data()
+    u = get_or_init_user(data, user)
+
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        bot.send_message(
+            message.chat.id,
+            "【⚠️】• Использование: /setdesc [текст описания]",
+            message_thread_id=thread_id
+        )
+        return
+
+    desc = args[1].strip()
+
+    if len(desc) > 200:
+        bot.send_message(
+            message.chat.id,
+            "【⚠️】• Описание слишком длинное. Максимум 200 символов.",
+            message_thread_id=thread_id
+        )
+        return
+
+    if message.from_user.id != user.id:
+        bot.send_message(
+            message.chat.id,
+            "【⛔】• Ты не можешь менять чужое описание",
+            message_thread_id=thread_id
+        )
+        return
+
+    u["description"] = desc
+    save_data_atomic(data)
+    bot.send_message(
+        message.chat.id,
+        "✅ Описание обновлено!",
+        message_thread_id=thread_id
+    )
+
+
+@bot.message_handler(commands=["setfav"])
+@require_podval
+@require_dymenko
+def set_favorite_cmd(message):
+    thread_id = _thread_id_of(message)  # поддержка тем
+    user = message.from_user
+    data = load_data()
+    u = get_or_init_user(data, user)
+
+    args = message.text.split()
+    if len(args) < 2:
+        bot.send_message(
+            message.chat.id,
+            "【⚠️】• Использование: /setfav [ID карты]",
+            message_thread_id=thread_id
+        )
+        return
+
+    card_id = args[1]
+    if card_id not in u.get("cards", {}) or u["cards"][card_id] <= 0:
+        bot.send_message(
+            message.chat.id,
+            f"🪫 У тебя нет карты с ID {card_id}",
+            message_thread_id=thread_id
+        )
+        return
+
+    if message.from_user.id != user.id:
+        bot.send_message(
+            message.chat.id,
+            "【⛔】• Ты не можешь менять чужую любимую карту",
+            message_thread_id=thread_id
+        )
+        return
+
+    u["favorite_card"] = card_id
+    save_data_atomic(data)
+    bot.send_message(
+        message.chat.id,
+        f"✅ Любимая карта установлена: {CARD_BY_ID[card_id]['name']}",
+        message_thread_id=thread_id
+    )
+
+
+
+ADMIN_IDS = {8435817141, 1261680759}
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
+
+@bot.message_handler(commands=["add"])
+def handle_giftenko(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "【⛔】• У тебя нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) != 3:
+        bot.reply_to(message, "【⚠️】• Используй: /add <telegram_id> <card_id>")
+        return
+
+    target_id, card_id = args[1], args[2]
+
+    card = next((c for c in CARDS + EVENT_CARDS if str(c["id"]) == str(card_id)), None)
+    if not card:
+        bot.reply_to(message, f"【⚠️】• Карта с id {card_id} не найдена")
+        return
+
+    data = load_data()
+    users = data.setdefault("users", {})
+    target_user = get_or_init_user(
+        data,
+        type("U", (), {"id": int(target_id), "first_name": "", "username": None})()
+    )
+
+    user_cards = target_user.setdefault("cards", {})
+
+    if card_id in user_cards and user_cards[card_id] > 0:
+        user_cards[card_id] += 1
+        save_data_atomic(data)
+        bot.reply_to(
+            message,
+            f"【🎁】• Повторная карта {card['name']} ({card['rarity']}) выдана пользователю {target_id}\nосколки не начислены"
+        )
+    else:
+        rarity = card["rarity"]
+        score = SCORE_WEIGHTS.get(rarity, 0)
+
+        user_cards[card_id] = 1
+        target_user["score"] = target_user.get("score", 0) + score
+
+        save_data_atomic(data)
+
+        bot.reply_to(
+            message,
+            f"【🎁】• Карта {card['name']} ({rarity}) успешно выдана пользователю {target_id}\n+{score} осколков"
+        )
+
+
+@bot.message_handler(commands=["take"])
+def handle_takeenko(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "【⛔】• У тебя нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) != 3:
+        bot.reply_to(message, "【⚠️】• Используй: /take <telegram_id> <card_id>")
+        return
+
+    target_id, card_id = args[1], args[2]
+
+    data = load_data()
+    users = data.setdefault("users", {})
+    target_user = users.get(target_id)
+    if not target_user:
+        bot.reply_to(message, f"【⚠️】• Пользователь {target_id} не найден")
+        return
+
+    user_cards = target_user.get("cards", {})
+    if card_id not in user_cards or user_cards[card_id] <= 0:
+        bot.reply_to(message, f"【⚠️】• У пользователя {target_id} нет карты {card_id}")
+        return
+
+    user_cards[card_id] -= 1
+    if user_cards[card_id] == 0:
+        del user_cards[card_id]
+
+    card = CARD_BY_ID.get(card_id)
+    if card:
+        rarity = card["rarity"]
+        score_to_remove = SCORE_WEIGHTS.get(rarity, 0)
+        target_user["score"] = max(0, target_user.get("score", 0) - score_to_remove)
+    else:
+        rarity = "?"
+
+    save_data_atomic(data)
+
+    bot.reply_to(
+        message,
+        f"【🗑】• У пользователя {target_id} забрана карта {card_id} ({rarity}), "
+        f"списано {score_to_remove} ауры"
+    )
+
+@bot.message_handler(commands=["reset"])
+def handle_resetenko(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "【⛔】• У тебя нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) != 2:
+        bot.reply_to(message, "【⚠️】• Используй: /resetenko <telegram_id>")
+        return
+
+    target_id = args[1]
+
+    data = load_data()
+    users = data.setdefault("users", {})
+    target_user = users.get(target_id)
+    if not target_user:
+        bot.reply_to(message, f"【⚠️】• Пользователь {target_id} не найден")
+        return
+
+    target_user["cards"] = {}
+    target_user["score"] = 0
+    save_data_atomic(data)
+
+    bot.reply_to(message, f"【🗑】• Коллекция пользователя {target_id} полностью обнулена")
+
+@bot.message_handler(commands=["allcards"])
+def handle_allcardsenko(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "【⛔】• У тебя нет прав для этой команды")
+        return
+
+    EVENT_CARDS_IDS = {c["id"] for c in EVENT_CARDS}
+    rarity_order = {
+        "FORGOTTEN":0,
+        "Special": 0,
+        "Mythic": 1,
+        "Legendary": 5,
+        "Epic": 20,
+        "Rare": 30,
+        "Uncommon": 45,
+    }
+
+
+    filtered = []
+    for c in CARD_BY_ID.values():
+        r = c.get("rarity")
+        cid = c.get("id")
+        is_daily = r in ("Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Special", "FORGOTTEN")
+
+        is_event = cid in EVENT_CARDS_IDS or cid in ARCHIVE_CARDS
+        if is_daily or is_event:
+            filtered.append(c)
+
+    def sort_key_card(card):
+        cid = card["id"]
+        m = re.search(r'(\d+)', cid)
+        num = int(m.group(1)) if m else 0
+        prefix = cid[:m.start()] if m else cid
+        return (rarity_order.get(card.get("rarity"), 999), prefix, num)
+
+    filtered.sort(key=sort_key_card)
+
+    lines = [f"{c['id']} — {c['name']} ({c.get('rarity','?')})" for c in filtered]
+
+    header = "📋 Все карты (повседневные + ивентовые):\n\n"
+    max_chunk = 3500
+    chunk = header
+    for line in lines:
+        if len(chunk) + len(line) + 1 > max_chunk:
+            bot.send_message(
+                chat_id=message.chat.id,
+                text=chunk.rstrip(),
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                message_thread_id=_thread_id_of(message)
+            )
+            chunk = ""
+        chunk += line + "\n"
+
+    if chunk.strip():
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=chunk.rstrip(),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            message_thread_id=_thread_id_of(message)
+        )
+
+
+@bot.message_handler(commands=["admhelp"])
+def handle_admhelp(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "【⛔】• У тебя нет прав для этой команды")
+        return
+
+    text = (
+        "👑 <b>Админ-команды</b>\n\n"
+
+        "🎁 <b>/add</b> <code>telegram_id</code> <code>card_id</code>\n"
+        "Подарить карту любую карту игроку, не смотря на наличие её в своей коллекции.\n"
+        "Пример: <code>/add 1488516622 l34</code>\n\n"
+
+        "🗑 <b>/take</b> <code>telegram_id</code> <code>card_id</code>\n"
+        "Забрать карту у игрока и списать очки.\n"
+        "Пример: <code>/take 1488516622 r1</code>\n\n"
+
+        "🧹 <b>/reset</b> <code>telegram_id</code>\n"
+        "Полностью обнулить коллекцию и очки игрока.\n"
+        "Пример: <code>/reset 1488516622</code>\n\n"
+
+        "📋 <b>/allcards</b>\n"
+        "Показать список всех карт (повседневные и ивентовые).\n"
+        "Пример: <code>/allcards</code>\n\n"
+
+        "ℹ️ Все команды доступны только администраторам."
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+        message_thread_id=_thread_id_of(message)
+    )
+
+
+@bot.message_handler(commands=["massgive_loud"])
+def massgive_loud(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "⛔ У тебя нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "⚠ Использование: /massgive_loud <card_id>")
+        return
+
+    card_id = args[1]
+    card = CARD_BY_ID.get(card_id)
+
+    if not card:
+        bot.reply_to(message, f"⚠ Карта с ID {card_id} не найдена")
+        return
+
+    rarity = card["rarity"]
+    score_gain = SCORE_WEIGHTS.get(rarity, 0)
+
+    data = load_data()
+    users = data.get("users", {})
+
+    given = 0
+    new_count = 0
+
+    for uid, u in users.items():
+        cards = u.setdefault("cards", {})
+        had_before = cards.get(card_id, 0) > 0
+
+        cards[card_id] = cards.get(card_id, 0) + 1
+
+        if not had_before and score_gain > 0:
+            u["score"] = u.get("score", 0) + score_gain
+            u["unique"] = u.get("unique", 0) + 1
+            new_count += 1
+
+        given += 1
+
+
+        try:
+            bot.send_message(
+                uid,
+                f"🎁 Массовая раздача! Ты получил карту: {card['name']} ({rarity})!"
+            )
+        except:
+            pass
+
+    save_data_atomic(data)
+
+    bot.send_message(
+        message.chat.id,
+        f"📢 Массовая раздача завершена!\n"
+        f"Карта: <b>{card['name']}</b> ({rarity})\n"
+        f"Выдано игрокам: {given}\n"
+        f"Новых уникальных: {new_count}\n"
+        f"Очки начислены: {'да' if score_gain > 0 else 'нет'}",
+        parse_mode="HTML"
+    )
+
+
+
+
+@bot.message_handler(commands=["massgive_silent"])
+def massgive_silent(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "⛔ У тебя нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "⚠ Использование: /massgive_silent <card_id>")
+        return
+
+    card_id = args[1]
+    card = CARD_BY_ID.get(card_id)
+
+    if not card:
+        bot.reply_to(message, f"⚠ Карта с ID {card_id} не найдена")
+        return
+
+    rarity = card["rarity"]
+    score_gain = SCORE_WEIGHTS.get(rarity, 0)
+
+    data = load_data()
+    users = data.get("users", {})
+
+    for uid, u in users.items():
+        cards = u.setdefault("cards", {})
+        had_before = cards.get(card_id, 0) > 0
+
+        cards[card_id] = cards.get(card_id, 0) + 1
+
+        if not had_before and score_gain > 0:
+            u["score"] = u.get("score", 0) + score_gain
+            u["unique"] = u.get("unique", 0) + 1
+
+    save_data_atomic(data)
+
+    bot.reply_to(message, f"✅ Тихая массовая раздача карты {card_id} выполнена.")
+
+
+@bot.message_handler(commands=["settopic"])
+@require_podval
+@require_dymenko
+def set_topic_cmd(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    try:
+        member = bot.get_chat_member(chat_id, user_id)
+        if member.status != "creator":
+            bot.send_message(
+                chat_id,
+                "❗ Только создатель чата может устанавливать тему.",
+                parse_mode="HTML"
+            )
+            return
+    except Exception:
+        bot.send_message(chat_id, "Не удалось проверить права пользователя.")
+        return
+
+    data = load_data()
+
+    try:
+        chat_info = bot.get_chat(chat_id)
+        is_forum = getattr(chat_info, "is_forum", False)
+    except Exception:
+        is_forum = False
+
+    # Если чат не форум — просто отключаем темы
+    if not is_forum:
+        allowed = data.setdefault("allowed_topics", {})
+        allowed[str(chat_id)] = None
+        save_data_atomic(data)
+
+        bot.send_message(
+            chat_id,
+            "✅ Тема установлена.\nБот теперь работает в этом чате (темы отсутствуют).",
+            parse_mode="HTML"
+        )
+        return
+
+    thread_id = getattr(message, "message_thread_id", None)
+    if thread_id is None:
+        bot.send_message(
+            chat_id,
+            "❗ Эту команду нужно использовать внутри темы форума.",
+            parse_mode="HTML"
+        )
+        return
+
+    allowed = data.setdefault("allowed_topics", {})
+    allowed[str(chat_id)] = thread_id
+    save_data_atomic(data)
+
+    bot.send_message(
+        chat_id,
+        f"✅ Тема установлена.\nТеперь бот работает только здесь.\n\nID темы: <code>{thread_id}</code>",
+        parse_mode="HTML",
+        message_thread_id=thread_id
+    )
+
+
+@bot.message_handler(commands=["unsettopic"])
+@require_podval
+@require_dymenko
+def unset_topic_cmd(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    try:
+        member = bot.get_chat_member(chat_id, user_id)
+        if member.status != "creator":
+            bot.send_message(
+                chat_id,
+                "❗ Только создатель чата может отключить тему.",
+                parse_mode="HTML"
+            )
+            return
+    except Exception:
+        bot.send_message(chat_id, "Не удалось проверить права пользователя.")
+        return
+
+    data = load_data()
+
+    allowed = data.setdefault("allowed_topics", {})
+    if str(chat_id) in allowed:
+        del allowed[str(chat_id)]
+        save_data_atomic(data)
+
+        bot.send_message(
+            chat_id,
+            "✅ Тема откреплена.\nБот снова работает в любом месте чата.",
+            parse_mode="HTML"
+        )
+    else:
+        bot.send_message(
+            chat_id,
+            "ℹ️ Для этого чата не была установлена тема.",
+            parse_mode="HTML"
+        )
+
+
+
+if __name__ == "__main__":
+    if not BOT_TOKEN:
+        raise RuntimeError("8348705286:AAEyfq7xsT3U8PuMvxayfzQvVhc84Mld60Q")
+    print("Смерть началась ...")
+
+    try:
+        bot.infinity_polling(skip_pending=True)
+    except Exception as e:
+        print(f"Ошибка в polling: {e}")
