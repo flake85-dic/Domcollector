@@ -573,7 +573,7 @@ def handle_start(message):
         '<i>Это карточный бот,\n'
         "<i>торгующий картами с персонажами из абсолютно разных вселенных.</i>\n\n"
         "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием.</b>\n\n"
-        '<a href="https://t.me/Collect0rs_W0rld">- Подписаться на канал бота -</a>'
+        "Подписаться на канал бота - https://t.me/Collect0rs_W0rld"
     )
 
     bot.send_message(
@@ -1180,7 +1180,7 @@ def sklad_evo_cmd(message):
 @require_podval
 @require_dymenko
 def sklad_exc_cmd(message):
-    send_sklad_by_rarity(message, "What the fuck.")
+    send_sklad_by_rarity(message, "Exclusive")
 
 @bot.message_handler(commands=["event"])
 @require_podval
