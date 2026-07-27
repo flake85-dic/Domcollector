@@ -75,7 +75,7 @@ RARITY_WEIGHTS = {
     "Legendary": 1.5,
     "Special": 0.75,
     "FORGOTTEN": 0.25,
-    "What the fuck.": 0
+    "Exclusive": 0
 }
 
 SCORE_WEIGHTS = {
@@ -86,7 +86,7 @@ SCORE_WEIGHTS = {
     "Legendary": 500,
     "Special": 1000,
     "FORGOTTEN": 5000,
-    "What the fuck.": 1,
+    "Exclusive": 1,
 }
 
 
@@ -94,7 +94,6 @@ CARDS = [
     {"id": "2011x", "name": "2011x", "rarity": "Epic", "image_url":"https://i.ibb.co/fY7FHXSY/962-20260312010645.png"},
     {"id": "tox_springtrap", "name": "Toxic Springtrap", "rarity": "Special", "image_url":"https://i.ibb.co/5hYGFg8g/962-20260313001424.png"},
     {"id": "neometal", "name": "Neo Metal Sonic", "rarity": "Epic", "image_url":"https://i.ibb.co/M51yNyd1/962-20260313001812.png"},
-    {"id": "dog", "name": "The Dog", "rarity": "Rare", "image_url":"https://i.ibb.co/PzDGvkr7/962-20260313002921.png"},
     {"id": "faker", "name": "Faker", "rarity": "Rare", "image_url":"https://i.ibb.co/3YBWzNQR/962-20260313003311.png"},
     {"id": "freddyfigure", "name": "Freddy Figure", "rarity": "Uncommon", "image_url":"https://i.ibb.co/0vP2sLr/962-20260313003700.png"},
     {"id": "infinite", "name": "Infinite", "rarity": "Mythic", "image_url":"https://i.ibb.co/sJmb3z3y/962-20260313004605.png"},
@@ -111,12 +110,37 @@ CARDS = [
     {"id": "phantom", "name": "Phantom", "rarity": "Rare", "image_url":"https://i.ibb.co/35Qh02YK/962-20260318220245.png"},
     {"id": "eggman", "name": "Eggman", "rarity": "Uncommon", "image_url":"https://i.ibb.co/TxjkRVLH/962-20260318220717.png"},
     {"id": "silver", "name": "Silver", "rarity": "Uncommon", "image_url":"https://i.ibb.co/xyHmQDQ/962-20260318220902.png"},
-    {"id": "nmi", "name": "No More Innocence", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/S7P9CCtf/962-20260318221605.png"},
     {"id": "noli", "name": "Noli", "rarity": "Legendary", "image_url":"https://i.ibb.co/WWcHW4kH/962-20260403015059.png"},
     {"id": "project", "name": "The Project", "rarity": "Epic", "image_url":"https://i.ibb.co/tTqMk1cz/962-20260402103618-2.png"},
     {"id": "executioner", "name": "Executioner", "rarity": "Legendary", "image_url":"https://i.ibb.co/VcFw3fNX/962-20260403014602.png"},
     {"id": "your.problem", "name": "YOUR.PROBLEM", "rarity": "Legendary", "image_url":"https://i.ibb.co/P2QL6mj/962-20260403014056.png"},
-    {"id": "blazebutholyfuck", "name": "Special Menu", "rarity": "What the fuck.", "image_url": "https://i.ibb.co/396VLFL0/photo-2026-04-08-22-42-59.jpg"},
+    {"id": "blazebutholyfuck", "name": "Special Menu", "rarity": "Exclusive", "image_url": "https://i.ibb.co/396VLFL0/photo-2026-04-08-22-42-59.jpg"},
+    {"id": "palpercy", "name": "Pal Percy", "rarity": "Mythic", "image_url":"https://i.ibb.co/F4zQ4Fg5/962-2-20260713031725.png"},
+    {"id": "myers", "name": "The Shape", "rarity": "Mythic", "image_url":"https://i.ibb.co/MyLsPYyD/962-2-20260720023605.png"},
+    {"id": "ada", "name": "Ada Wong", "rarity": "Epic", "image_url":"https://i.ibb.co/0yhc0Ly7/962-2-20260720024215.png"},
+    {"id": "void", "name": "Void", "rarity": "Legendary", "image_url":"https://i.ibb.co/jvhB4c8J/962-2-20260720025809.png"},
+    {"id": "dredge", "name": "Dredge", "rarity": "Legendary", "image_url":"https://i.ibb.co/27X8CbzD/962-2-20260720025207.png"},
+    {"id": "caban", "name": "Сколиозик", "rarity": "Exclusive", "image_url":"https://i.ibb.co/TBf1L4mR/962-2-20260726162948.png"},
+    {"id": "nmi", "name": "No More Innocence", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/qFJ0dnWT/962-2-20260726164556.png"},
+    {"id": "oxy", "name": "Oxy", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/PvZTCBjQ/962-20260625005048.png"},
+    {"id": "xeno", "name": "Xenophanus", "rarity": "Mythic", "image_url":"https://i.ibb.co/67txZJHV/962-2-20260709152409.png"},
+    {"id": "fatal", "name": "Fatal Error", "rarity": "Mythic", "image_url":"https://i.ibb.co/HpFFkK5K/962-2-20260709152800.png"},
+    {"id": "kolossos", "name": "Kolossos", "rarity": "Mythic", "image_url":"https://i.ibb.co/k6k8P7zm/962-2-20260709153346.png"},
+    {"id": "nemesis", "name": "Nemesis", "rarity": "Mythic", "image_url":"https://i.ibb.co/2084Vy5g/962-20260603120701.png"},
+    {"id": "mrneedlemouse", "name": "Mr. Needlemouse", "rarity": "Special", "image_url":"https://i.ibb.co/BvyzF0V/962-20260603122025.png"},
+    {"id": "rubaka", "name": "The Slasher", "rarity": "Special", "image_url":"https://i.ibb.co/Fb82CfYF/962-20260605013544.png"},
+    {"id": "dog", "name": "The Dog", "rarity": "Rare", "image_url":"https://i.ibb.co/nMdDqj0V/962-20260409014409.png"},
+    {"id": "salvage", "name": "Salvage", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/1GhDFjKb/962-20260412025846.png"},
+    {"id": "vapor", "name": "Vapor", "rarity": "Epic", "image_url":"https://i.ibb.co/h1wQfH75/962-20260526013429.png"},
+    {"id": "allfather", "name": "AllFather", "rarity": "Special", "image_url":"https://i.ibb.co/hx7cNs99/962-20260526015318.png"},
+    {"id": "dontcomeback", "name": "Don't Come Back.", "rarity": "Special", "image_url":"https://i.ibb.co/ks8yHMX2/962-20260526020621.png"},
+    {"id": "ennard", "name": "Ennard", "rarity": "Epic", "image_url":"https://i.ibb.co/PvBBC3TN/962-20260407010048.png"},
+    {"id": "withfreddy", "name": "Withered Freddy", "rarity": "Rare", "image_url":"https://i.ibb.co/Psq9Tg3w/962-20260409011915.png"},
+    {"id": "syn_blyadi", "name": "PCX", "rarity": "Uncommon", "image_url":"https://i.ibb.co/N2k7tVLX/962-20260409012735.png"},
+    {"id": "classicjeff", "name": "Classic Jeffrey Woods", "rarity": "Uncommon", "image_url":"https://i.ibb.co/5gxX1hYH/962-20260409013208.png"},
+    {"id": "syn_blyadi2", "name": "Fleetway Super Sonic", "rarity": "Epic", "image_url":"https://i.ibb.co/wNY0HpmT/962-20260407025903.png"},
+    {"id": "inkfell", "name": "Inkfell", "rarity": "Epic", "image_url":"https://i.ibb.co/FkDNqWBN/962-20260407030343.png"},
+    {"id": "welcomeback", "name": "WELCOME BACK", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/7d3sqZSM/962-20260407012036.png"},
 ]
 
 EVENT_CARDS = [
@@ -129,10 +153,14 @@ EVENT_CARDS = [
 
 EVO_CARDS = [
         {"id": "imp_infinite", "name": "Samurai Infinite", "rarity": "Improved", "image_url":"https://i.ibb.co/23Pf8TtT/962-20260313005139.png"},
-        {"id": "imp_animatronic", "name": "Blighted Animatronic", "rarity": "Improved", "image_url":"https://i.ibb.co/F42SvP37/962-20260317021111.png"},
+        {"id": "blightedanimatronic", "name": "Blighted Animatronic", "rarity": "Improved", "image_url":"https://i.ibb.co/qYzxF0rG/962-20260626015505.png"},
+        {"id": "classic2011x", "name": "Classic 2011x", "rarity": "Improved", "image_url":"https://i.ibb.co/zWQz2Gz6/962-2-20260726163746.png"},
         {"id": "saint_solis", "name": "St. Solis EXE", "rarity": "Improved", "image_url":"https://i.ibb.co/KxBSQxjr/962-20260402102055.png"},
+        {"id": "goldenfreddy", "name": "Golden Freddy", "rarity": "Improved", "image_url":"https://i.ibb.co/qFscPxDM/962-2-20260720030351.png"},
         {"id": "ruined", "name": "Ruined Project", "rarity": "Improved", "image_url":"https://i.ibb.co/ch6RHy0T/962-20260402104334.png"},
         {"id": "ascended", "name": "Ascended Noli", "rarity": "Improved", "image_url":"https://i.ibb.co/JMNBLyd/962-20260403011447.png"},
+        {"id": "forestlossos", "name": "Forest Kolossos", "rarity": "Improved", "image_url":"https://i.ibb.co/nqmGdFZX/962-2-20260709153933.png"},
+        {"id": "moltenfreddy", "name": "Molten Freddy", "rarity": "Improved", "image_url":"https://i.ibb.co/FLHMwfTj/962-20260409002937.png"},
 ]
 
 
@@ -170,7 +198,11 @@ EVOLUTIONS_BY_NAME = {
     "The Animatronic": "Blighted Animatronic",
     "Faker": "St. Solis EXE",
     "Noli": "Ascended Noli",
-    "The Project": "Ruined Project"
+    "The Project": "Ruined Project",
+    "2011x": "Classic 2011x",
+    "Withered Freddy": "Golden Freddy",
+    "Kolossos": "Forest Kolossos",
+    "Ennard": "Molten Freddy"
 }
 
 
@@ -538,9 +570,10 @@ def start_cmd(message):
 def handle_start(message):
     text = (
         "<b>Welcome Back... Или мы с тобою не виделись?</b>\n\n"
-        '<i>Это карточный бот, созданный <a href="https://t.me/Cr3ators_Domain">Креейтором</a> и <a href="https://t.me/flakeclipse">Флейком</a></i>\n'
-        "<i>и имеющий разнообразную тематику, вроде ЕХЕверса и ФНАФа.</i>\n\n"
-        "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием.</b>"
+        '<i>Это карточный бот,\n'
+        "<i>торгующий картами с персонажами из абсолютно разных вселенных.</i>\n\n"
+        "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием.</b>\n\n"
+        '<a href="https://t.me/Collect0rs_W0rld">- Подписаться на канал бота -</a>'
     )
 
     bot.send_message(
