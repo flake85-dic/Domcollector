@@ -574,9 +574,9 @@ def handle_start(message):
         "<i>торгующий картами с персонажами из абсолютно разных вселенных.</i>\n\n"
         "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием.</b>\n\n"
         '<a href="https://t.me/Collect0rs_W0rld">— Подписаться на канал бота -</a>\n'
-        "<b>Бота создавали:</b>"
-        '<a href="https://t.me/CR3ATORSDOMAIN">Креейтор</a>'
-        '<a href="https://t.me/flakee85">Флейк</a>',
+        "<b>Бота создавали:</b>\n"
+        '<a href="https://t.me/CR3ATORSDOMAIN">Креейтор</a>\n'
+        '<a href="https://t.me/flakee85">Флейк</a>\n',
     )
 
     bot.send_message(
