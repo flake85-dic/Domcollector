@@ -75,8 +75,7 @@ RARITY_WEIGHTS = {
     "Legendary": 1.5,
     "Special": 0.75,
     "FORGOTTEN": 0.25,
-    "Exclusive": 0
-    "
+    "Exclusive": -100
 }
 
 SCORE_WEIGHTS = {
