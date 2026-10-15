@@ -769,11 +769,11 @@ def handle_case(message):
         f'<blockquote>{user_display} | И твоя новая карта...</blockquote>\n<b>{name} - {rarity}</b>\n',
         f'<blockquote>{user_display} | Я тебе притащил карту!</blockquote>\n<b>{name} - {rarity}</b>\n',
         f'<blockquote>{user_display} | Держи еще одну карту:</blockquote>\n<b>{name} - {rarity}</b>\n',
-        f'<blockquote>{user_display} | И твоя новая СТРАААШНАЯ карта...:</blockquote>\n<b>{name} - {rarity}</b>\n',
-        f'<blockquote>{user_display} | БУ!:</blockquote>\n<b>{name} - {rarity}</b>\n',
-        f'<blockquote>{user_display} | HERE'S JOHNNY!</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | И твоя новая СТРАААШНАЯ карта...</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | BVI!</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | HERE\'S JOHNNY!</blockquote>\n<b>{name} - {rarity}</b>\n', # Исправлено здесь
         f'<blockquote>{user_display} | The fog approaches.</blockquote>\n<b>{name} - {rarity}</b>\n'
-        ]
+    ]
 
     duplicate_texts = [
         "<b>Хм, ничего нового. Повторка.</b>",
@@ -784,7 +784,7 @@ def handle_case(message):
         "<b>Похоже, что кто-то выбрал ГАДОСТЬ.</b>"
         "<b>Нечего интересного. А знаешь почему? Это повторка</b>"
         "<b>Better luck next time.</b>"
-        ]
+    ]
 
     caption = random.choice(drop_texts).format(name=card["name"], rarity=rarity)
     if is_new and added_score > 0:
