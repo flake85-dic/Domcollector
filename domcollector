@@ -687,7 +687,7 @@ def handle_case(message):
 
     last_case = data.get("last_case", {}).get(user_id, 0)
     now = int(time.time())
-    COOLDOWN_SECONDS_LOCAL = 7200
+    COOLDOWN_SECONDS_LOCAL = 21600
 
 
     if user.username:
