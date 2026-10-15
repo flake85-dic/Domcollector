@@ -19,7 +19,7 @@ telebot.apihelper.proxy = {}
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8348705286:AAEyfq7xsT3U8PuMvxayfzQvVhc84Mld60Q")
 
 #
-REQUIRED_CHAT_ID_CREATOR = -1001793978993
+REQUIRED_CHAT_ID_CREATOR = -1003597742528
 REQUIRED_CHAT_ID_FLAKE =  -1001793978993
 
 def is_member(user_id: int, chat_id: int) -> bool:
