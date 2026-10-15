@@ -76,6 +76,7 @@ RARITY_WEIGHTS = {
     "Special": 0.75,
     "FORGOTTEN": 0.25,
     "Exclusive": 0
+    "
 }
 
 SCORE_WEIGHTS = {
@@ -86,7 +87,7 @@ SCORE_WEIGHTS = {
     "Legendary": 500,
     "Special": 1000,
     "FORGOTTEN": 5000,
-    "Exclusive": 1,
+    "Exclusive": 7500,
 }
 
 
@@ -141,6 +142,17 @@ CARDS = [
     {"id": "syn_blyadi2", "name": "Fleetway Super Sonic", "rarity": "Epic", "image_url":"https://i.ibb.co/wNY0HpmT/962-20260407025903.png"},
     {"id": "inkfell", "name": "Inkfell", "rarity": "Epic", "image_url":"https://i.ibb.co/FkDNqWBN/962-20260407030343.png"},
     {"id": "welcomeback", "name": "WELCOME BACK", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/7d3sqZSM/962-20260407012036.png"},
+    {"id": "brutum", "name": "Brutum", "rarity": "Mythic", "image_url":"https://i.ibb.co/TMXNDVZt/962-2-20261014031214.png"},
+    {"id": "forsakenx", "name": "FORSAKEN X", "rarity": "Legendary", "image_url":"https://i.ibb.co/1GryW4GP/962-2-20261014030113.png"},
+    {"id": "bleachfog", "name": "Bleached Fogborn", "rarity": "FORGOTTEN", "image_url":"https://i.ibb.co/pjbm6TLn/962-2-20261014215443.png"},
+    {"id": "tormented", "name": "Tormented", "rarity": "Special", "image_url":"https://i.ibb.co/v60n3DqN/962-2-20261014221414.png"},
+    {"id": "valem", "name": "Valem", "rarity": "Mythic", "image_url":"https://i.ibb.co/2YgH7NBK/962-2-20261014221541.png"},
+    {"id": "agatha", "name": "Agatha", "rarity": "Epic", "image_url":"https://i.ibb.co/YTJ8QncH/962-2-20261014221744.png"},
+    {"id": "redglove", "name": "Redglove", "rarity": "Legendary", "image_url":"https://i.ibb.co/G32vTqGc/962-2-20261015174048.png"},
+    {"id": "cainex", "name": "Caine X", "rarity": "Special", "image_url":"https://i.ibb.co/BHCxv9rT/962-2-20261015175336.png"},
+    {"id": "pest", "name": "Pest", "rarity": "Epic", "image_url":"https://i.ibb.co/rG0QXvKr/962-2-20261015190252.png"},
+    {"id": "guillotina", "name": "Guillotina", "rarity": "Epic", "image_url":"https://i.ibb.co/wFN8jBPH/962-2-20261015190816.png"},
+
 ]
 
 EVENT_CARDS = [
@@ -161,6 +173,9 @@ EVO_CARDS = [
         {"id": "ascended", "name": "Ascended Noli", "rarity": "Improved", "image_url":"https://i.ibb.co/JMNBLyd/962-20260403011447.png"},
         {"id": "forestlossos", "name": "Forest Kolossos", "rarity": "Improved", "image_url":"https://i.ibb.co/nqmGdFZX/962-2-20260709153933.png"},
         {"id": "moltenfreddy", "name": "Molten Freddy", "rarity": "Improved", "image_url":"https://i.ibb.co/FLHMwfTj/962-20260409002937.png"},
+        {"id": "areajason", "name": "Area 51 Jason", "rarity": "Improved", "image_url":"https://i.ibb.co/20HTynqd/962-2-20261013013530.png"},
+        {"id": "odium", "name": "Odium Brutum", "rarity": "Improved", "image_url":"https://i.ibb.co/0j0qXvcR/962-2-20261014032037.png"},
+        {"id": "salvation", "name": "Salvation Valem", "rarity": "Improved", "image_url":"https://i.ibb.co/zhBjSyDs/962-2-20261015172337.png"},
 ]
 
 
@@ -182,7 +197,7 @@ RARITY_ORDER = {
     "Legendary": 4,
     "Special": 5,
     "FORGOTTEN": 6,
-    "What the fuck.": 7
+    "Exclusive": 7
 }
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
@@ -202,7 +217,10 @@ EVOLUTIONS_BY_NAME = {
     "2011x": "Classic 2011x",
     "Withered Freddy": "Golden Freddy",
     "Kolossos": "Forest Kolossos",
-    "Ennard": "Molten Freddy"
+    "Ennard": "Molten Freddy",
+    "The Slasher": "Area 51 Jason",
+    "Brutum": "Odium Brutum",
+    "Valem": "Salvation Valem"
 }
 
 
@@ -570,13 +588,13 @@ def start_cmd(message):
 def handle_start(message):
     text = (
         "<b>Welcome Back... Или мы с тобою не виделись?</b>\n\n"
-        '<i>Это карточный бот,</i> \n'
-        "<i>торгующий картами с персонажами из абсолютно разных вселенных.</i>\n\n"
-        "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием.</b>\n\n"
+        '<i>Collector - это карточный бот</i> \n'
+        "<i>В котором собраны карты с персонажами из абсолютно разных вселенных</i>\n\n"
+        "<b>Первое что тебе стоит сделать, это... взять карту через /pull .\nНе бойся, это обойдется лишь твоим ожиданием</b>\n\n"
         '<a href="https://t.me/Collect0rs_W0rld">— Подписаться на канал бота -</a>\n \n'
         "<b>Бота создавали:</b>\n"
         '<a href="https://t.me/CR3ATORSDOMAIN">Креейтор</a>\n'
-        '<a href="https://t.me/flakee85">Флейк</a>\n',
+        '<a href="https://t.me/@arqlei">Аркли</a>\n',
     )
 
     bot.send_message(
@@ -684,6 +702,8 @@ def handle_case(message):
         "<b>Надеюсь, {m} минут и {s} секунд потерпеть это в твоих силах.</b>",
         "<b>Ииии... {m} минут и {s} секунд остается до релиза Форг-- ой то есть до следующей карты!</b>",
         "<b>Пэйдэй через {m} минут и {s} секунд.</b>"
+        "<b>{m} minutes {s} second until the party</b>",
+        "<b>Кролики велели подождать тебе еще {m} минут и {s} секунд</b>",
     ]
 
     if now - last_case < COOLDOWN_SECONDS_LOCAL:
@@ -750,6 +770,10 @@ def handle_case(message):
         f'<blockquote>{user_display} | И твоя новая карта...</blockquote>\n<b>{name} - {rarity}</b>\n',
         f'<blockquote>{user_display} | Я тебе притащил карту!</blockquote>\n<b>{name} - {rarity}</b>\n',
         f'<blockquote>{user_display} | Держи еще одну карту:</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | И твоя новая СТРАААШНАЯ карта...:</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | БУ!:</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | HERE'S JOHNNY!</blockquote>\n<b>{name} - {rarity}</b>\n',
+        f'<blockquote>{user_display} | The fog approaches.</blockquote>\n<b>{name} - {rarity}</b>\n',
     ]
 
     duplicate_texts = [
@@ -758,6 +782,9 @@ def handle_case(message):
         "<b>Она уже есть у тебя.. Пока что без осколков.</b>",
         "<b>Повторка, предлагаю ее отдать тому, кому нужнее.</b>\n <i>(Псс, это делается через команду /gift)</i>",
         "<b>Повезет в следующий раз...</b>"
+        "<b>Похоже, что кто-то выбрал ГАДОСТЬ.</b>"
+        "<b>Нечего интересного. А знаешь почему? Это повторка</b>"
+        "<b>Better luck next time.</b>"
     ]
 
     caption = random.choice(drop_texts).format(name=card["name"], rarity=rarity)
@@ -840,7 +867,7 @@ def handle_top(message):
     users = data.get("users", {})
     top_users = sort_users_for_top(users)[:20]
 
-    header = "<b>НАШИ ЛУЧШИЕ ПОЛЬЗОВАТЕЛИ</b>\n"
+    header = "<b>| 🎃 The greatest collectioners 🎃 |</b>\n"
     lines = []
     for i, u in enumerate(top_users, start=1):
         display_name = u.get("name") or f'User {u.get("id")}'
@@ -848,7 +875,7 @@ def handle_top(message):
         score = u.get("score", 0)
         lines.append(f'{i}. <a href="{link}">{display_name}</a> — осколков: {score}')
     if not lines:
-        lines.append("тут никогда не будет пусто хых")
+        lines.append("I see you.")
 
     bot.send_message(
         chat_id=message.chat.id,
@@ -895,7 +922,7 @@ def handle_gift(message):
     if not recipient_user:
         bot.send_message(
             message.chat.id,
-            f"【⚠️】• Получатель {recipient_arg} не найден.",
+            f"Получатель {recipient_arg} не найден.",
             message_thread_id=thread_id
         )
         return
@@ -904,7 +931,7 @@ def handle_gift(message):
     if not card:
         bot.send_message(
             message.chat.id,
-            "【⚠️】• Карта с таким ID не найдена.",
+            "Карта с таким ID не найдена.",
             message_thread_id=thread_id
         )
         return
@@ -914,7 +941,7 @@ def handle_gift(message):
     if card_id not in sender_cards:
         bot.send_message(
             message.chat.id,
-            "【⚠️】• У тебя нет такой карты.",
+            "У тебя нет такой карты.",
             message_thread_id=thread_id
         )
         return
@@ -941,7 +968,7 @@ def handle_gift(message):
         if card_count < 1:
             bot.send_message(
                 message.chat.id,
-                f"【⚠️】• У тебя нет карты {rarity} для подарка.",
+                f"У тебя нет карты {rarity} для подарка.",
                 message_thread_id=thread_id
             )
             return
@@ -953,15 +980,15 @@ def handle_gift(message):
             added_score = SCORE_WEIGHTS.get(rarity, 0)
             recipient_user["score"] = recipient_user.get("score", 0) + added_score
             recipient_user["unique"] = recipient_user.get("unique", 0) + 1
-            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!\n+{added_score} осколков получателю"
+            main_text = f"{sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!\n+{added_score} осколков получателю"
         else:
-            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!"
+            main_text = f"{sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!"
 
     else:
         if rarity not in rarity_rules:
             bot.send_message(
                 message.chat.id,
-                "【⚠️】• Эту карту нельзя подарить.",
+                "Эту карту нельзя подарить.",
                 message_thread_id=thread_id
             )
             return
@@ -985,9 +1012,9 @@ def handle_gift(message):
             added_score = SCORE_WEIGHTS.get(rarity, 0)
             recipient_user["score"] = recipient_user.get("score", 0) + added_score
             recipient_user["unique"] = recipient_user.get("unique", 0) + 1
-            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!\n+{added_score} осколков получателю"
+            main_text = f"{sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!\n+{added_score} осколков получателю"
         else:
-            main_text = f"【🎁】• {sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!"
+            main_text = f"{sender_display} подарил карту \"{card['name']}\" ({rarity}) {recipient_display}!"
 
     bot.send_message(
         message.chat.id,
@@ -996,7 +1023,7 @@ def handle_gift(message):
         message_thread_id=thread_id
     )
 
-    notify_text = f"【📩】• {sender_display} подарил тебе карту \"{card['name']}\" ({rarity})!"
+    notify_text = f"{sender_display} подарил тебе карту \"{card['name']}\" ({rarity})!"
     try:
         bot.send_message(
             chat_id=recipient_user["id"],
