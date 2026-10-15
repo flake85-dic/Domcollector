@@ -773,7 +773,7 @@ def handle_case(message):
         f'<blockquote>{user_display} | БУ!:</blockquote>\n<b>{name} - {rarity}</b>\n',
         f'<blockquote>{user_display} | HERE'S JOHNNY!</blockquote>\n<b>{name} - {rarity}</b>\n',
         f'<blockquote>{user_display} | The fog approaches.</blockquote>\n<b>{name} - {rarity}</b>\n',
-    ]
+     ]
 
     duplicate_texts = [
         "<b>Хм, ничего нового. Повторка.</b>",
